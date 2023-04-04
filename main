@@ -1,0 +1,84 @@
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Load the cityscape image
+img = cv2.imread('image1.png')
+
+# Convert the image to grayscale
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+# Compute the ground truth edges using a morphological gradient
+kernel = np.ones((5,5),np.uint8)
+gradient = cv2.morphologyEx(gray, cv2.MORPH_GRADIENT, kernel)
+gt_edges = cv2.threshold(gradient, 50, 255, cv2.THRESH_BINARY)[1]
+
+# Initialize lists to store IoU scores and threshold values
+ious = []
+thresholds = []
+
+# Initialize a list to store the edge images
+edges_list = []
+
+# Iterate over a range of threshold values and compute IoU scores and edge images for each
+for threshold in range(25, 251, 10):
+    # Apply Canny edge detection to extract edges using the current threshold
+    edges = cv2.Canny(gray, threshold, threshold*2)
+
+    # Compute the intersection and union of the detected and ground truth edges
+    intersection = np.logical_and(gt_edges, edges).sum()
+    union = np.logical_or(gt_edges, edges).sum()
+
+    # Compute the Intersection over Union (IoU) metric
+    iou = intersection / union
+
+    # Append the IoU score, threshold value, and edge image to their respective lists
+    ious.append(iou)
+    thresholds.append(threshold)
+    edges_list.append(edges)
+
+# Create a figure with larger size
+fig, ax = plt.subplots(figsize=(12, 6))
+
+# Plot the IoU scores as a function of the threshold values
+ax.plot(thresholds, ious)
+ax.set_xlabel('Threshold Value')
+ax.set_ylabel('Intersection over Union (IoU)')
+ax.set_ylim([0.05, 0.35])
+
+# Define a function to handle mouse clicks on an image
+def on_image_click(event):
+    # Check if the event occurred on an image axis
+    for image_axis in image_axes:
+        if event.inaxes == image_axis:
+            # Get the current image and its title
+            image = image_axis.images[0]
+            title = image_axis.get_title()
+
+            # Create a new figure to display the enlarged image
+            fig, ax = plt.subplots()
+            ax.imshow(image.get_array(), cmap='gray')
+            ax.set_title(title)
+            ax.axis('off')
+            plt.show()
+
+# Display images at different threshold values
+threshold_values = [50, 105, 200]
+image_axes = []
+for i, threshold_value in enumerate(threshold_values):
+    left = 0.1 + i * 0.2
+    bottom = 0.15 if i%2 == 0 else 0.6
+    image_axis = fig.add_axes([left, bottom, 0.3, 0.2])
+    image_axis.imshow(edges_list[(threshold_value-50)//10], cmap='gray', extent=[0, 512, 512, 0])
+    image_axis.set_title(f'Threshold: {threshold_value}\nIoU: {ious[(threshold_value-50)//10]:.3f}')
+    image_axis.axis('off')
+
+    # Add the event handler to the image axis
+    image_axis.figure.canvas.mpl_connect('button_press_event',on_image_click)
+
+image_axes.append(image_axis)
+
+fig.set_size_inches(12, 8)
+
+
+plt.show()
