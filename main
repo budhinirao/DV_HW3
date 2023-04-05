@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Load the cityscape image
-img = cv2.imread('image1.png')
+img = cv2.imread('image2.png')
 
 # Convert the image to grayscale
 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -25,6 +25,9 @@ for threshold in range(25, 251, 10):
     # Apply Canny edge detection to extract edges using the current threshold
     edges = cv2.Canny(gray, threshold, threshold*2)
 
+    # Dilate the edges to make them thicker
+    edges = cv2.dilate(edges, kernel, iterations=1)
+
     # Compute the intersection and union of the detected and ground truth edges
     intersection = np.logical_and(gt_edges, edges).sum()
     union = np.logical_or(gt_edges, edges).sum()
@@ -44,7 +47,7 @@ fig, ax = plt.subplots(figsize=(12, 6))
 ax.plot(thresholds, ious)
 ax.set_xlabel('Threshold Value')
 ax.set_ylabel('Intersection over Union (IoU)')
-ax.set_ylim([0.05, 0.35])
+ax.set_ylim([0.2, 0.8])
 
 # Define a function to handle mouse clicks on an image
 def on_image_click(event):
@@ -63,22 +66,27 @@ def on_image_click(event):
             plt.show()
 
 # Display images at different threshold values
-threshold_values = [50, 105, 200]
+threshold_values = [50, 105, 180]
 image_axes = []
 for i, threshold_value in enumerate(threshold_values):
     left = 0.1 + i * 0.2
     bottom = 0.15 if i%2 == 0 else 0.6
     image_axis = fig.add_axes([left, bottom, 0.3, 0.2])
-    image_axis.imshow(edges_list[(threshold_value-50)//10], cmap='gray', extent=[0, 512, 512, 0])
+    
+    # Set all color channels to 255 for the detected edges
+    edges_white = np.zeros_like(img)
+    edges_white[edges_list[(threshold_value-50)//10] != 0] = (255, 255, 255)
+    
+    image_axis.imshow(edges_white, extent=[0, 512, 512, 0])
     image_axis.set_title(f'Threshold: {threshold_value}\nIoU: {ious[(threshold_value-50)//10]:.3f}')
     image_axis.axis('off')
 
     # Add the event handler to the image axis
-    image_axis.figure.canvas.mpl_connect('button_press_event',on_image_click)
+    image_axis.figure.canvas.mpl_connect('button_press_event', on_image_click)
 
-image_axes.append(image_axis)
+    image_axes.append(image_axis)
 
 fig.set_size_inches(12, 8)
 
-
 plt.show()
+
